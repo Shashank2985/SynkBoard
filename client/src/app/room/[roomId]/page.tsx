@@ -12,42 +12,26 @@ const Canvas = dynamic(() => import('@/components/Canvas'), {
 });
 
 import Toolbar from '@/components/Toolbar';
-import UserList from '@/components/UserList';
 import Link from 'next/link';
 
-// Next.js 15+ Params are async. `use` is needed or `await params`. 
-// But standard Next.js 13/14 App router params prop is just { params: { roomId: string } }
-// Adapting for modern Next.js
+// Note: Canvas component now handles user list and presence internally
 export default function RoomPage({ params }: { params: Promise<{ roomId: string }> }) {
-    // resolve params
     const { roomId } = use(params);
-
     const { user, isAuthenticated } = useUserStore();
     const router = useRouter();
+    
     const [tool, setTool] = useState<'pen' | 'eraser' | 'rect' | 'circle' | 'triangle' | 'text'>('pen');
     const [color, setColor] = useState('#000000');
     const [lineWidth, setLineWidth] = useState(5);
-    const [users, setUsers] = useState<string[]>([]);
-    const socket = getSocket();
     const saveCanvasRef = useRef<(() => Promise<void>) | null>(null);
+    const socket = getSocket();
 
     useEffect(() => {
         if (!isAuthenticated) {
             router.push('/login');
             return;
         }
-
-        socket.emit('join-room', roomId);
-
-        // Listen for internal user list updates if implemented
-        socket.on('user-joined', (data: any) => {
-            console.log("User joined", data);
-        });
-
-        return () => {
-            socket.off('user-joined');
-        };
-    }, [roomId, isAuthenticated, router, socket]);
+    }, [isAuthenticated, router]);
 
     const handleClear = () => {
         socket.emit('clear-canvas', roomId);
@@ -68,8 +52,6 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 Room: {roomId}
             </div>
 
-            <UserList users={users} />
-
             <Toolbar
                 currentTool={tool}
                 setTool={setTool}
@@ -81,7 +63,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
                 onSave={() => saveCanvasRef.current?.()}
             />
 
-            {/* Canvas is now dynamically imported */}
+            {/* Canvas handles state sync, users, and presence */}
             <Canvas
                 roomId={roomId}
                 tool={tool}
